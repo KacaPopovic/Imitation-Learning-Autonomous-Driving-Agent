@@ -12,6 +12,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
+from sklearn.utils.class_weight import compute_class_weight
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+
 
 def transform_label(label):
     if label == [0.0, 0.0, 0.0]:
@@ -45,14 +49,14 @@ class CustomDataset(Dataset):
         label = self.labels[idx]
 
         if self.transform:
-            if np.random.rand() > 0.5:
+            if np.random.rand() > 0.8:
                 image = transforms.functional.vflip(image)
                 # Swap labels if vertical flip occurs
                 if label == 1:
                     label = 2
                 elif label == 2:
                     label = 1
-            if np.random.rand() > 0.5:
+            if np.random.rand() > 0.8:
                 image_np = np.array(image)
 
                 # Define the grey color range.
@@ -98,29 +102,32 @@ class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
         # Convolutional layer (sees 96x96x3 image tensor)
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1)
+
         # Convolutional layer (sees 48x48x16 tensor)
-        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
-        # Convolutional layer (sees 24x24x32 tensor)
-        self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
+
         # Max pooling layer
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
         # Linear layer (64 * 12 * 12 -> 500)
-        self.fc1 = nn.Linear(64 * 12 * 12, 500)
+        self.fc1 = nn.Linear(64 * 24 * 24, 128)
+
         # Linear layer (500 -> 5)
-        self.fc2 = nn.Linear(500, 5)
+        self.fc2 = nn.Linear(128, 5)
 
     def forward(self, x):
         # Add sequence of convolutional and max pooling layers
         x = self.pool(F.relu(self.conv1(x)))
+
         x = self.pool(F.relu(self.conv2(x)))
-        x = self.pool(F.relu(self.conv3(x)))
+
         # Flatten image input
-        x = x.view(-1, 64 * 12 * 12)
-        # Add dropout layer
-        x = F.dropout(x, 0.5)
+        x = torch.flatten(x, start_dim=1)
+
         # Add 1st hidden layer, with relu activation function
         x = F.relu(self.fc1(x))
+
         # Add 2nd hidden layer (output layer)
         x = self.fc2(x)
         return x
@@ -128,11 +135,18 @@ class CNN(nn.Module):
 
 # Function for training and validation
 
-def train_and_validate(model, train_loader, val_loader, optimizer, criterion, num_epochs=10):
+def train_and_validate(model, train_loader, val_loader, optimizer, criterion, num_epochs=10, patience = 3):
     best_val_accuracy = 0.0
     train_losses, val_losses, train_accuracies, val_accuracies = [], [], [], []
 
+    non_improve_counter = 0
+
     for epoch in range(num_epochs):
+        # If the counter reaches the patience limit, stop training
+        if non_improve_counter >= patience:
+            print("Early stopping due to no improvement")
+            break
+
         model.train()
         train_loss = 0.0
         total_train = 0
@@ -186,6 +200,9 @@ def train_and_validate(model, train_loader, val_loader, optimizer, criterion, nu
             best_val_accuracy = val_accuracy  # Update the best known accuracy
             torch.save(model.state_dict(), 'best_model.pth')  # Save the model
             print("Saved new best model")
+            non_improve_counter = 0  # Reset counter
+        else:
+            non_improve_counter += 1  # Increment counter if no improvement
 
     return train_losses, val_losses, train_accuracies, val_accuracies
 
@@ -197,9 +214,12 @@ if __name__ ==  "__main__":
     image_paths = df['Snapshot'].values
     labels = df['Action'].apply(eval).values
     discrete_labels = np.array([transform_label(label) for label in labels])
-    for i in range(10):
-        print(f"Path: {image_paths[i]}, Label: {discrete_labels[i]}")
-    base_path = "./"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Assuming 'discrete_labels' contains all your labels for the dataset
+    class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(discrete_labels), y=discrete_labels)
+    class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
+
     #image_paths = [str(path) for path in image_paths]
     #image_paths = [os.path.join(base_path, path) for path in image_paths]
 
@@ -214,23 +234,48 @@ if __name__ ==  "__main__":
     train_size = int(0.6 * len(image_paths))
     val_size = int(0.2 * len(image_paths))
     test_size = len(image_paths) - train_size - val_size
-    training_paths = image_paths[0:train_size]
-    val_paths = image_paths[train_size:train_size+val_size]
-    test_paths  = image_paths[train_size + val_size:]
+    test_paths = image_paths[0:test_size]
+    val_paths = image_paths[test_size:test_size+val_size]
+    training_paths = image_paths[test_size + val_size:]
 
     # Create the dataset and data loader
-    train_data = CustomDataset(image_paths=training_paths, labels=discrete_labels, transform=None)
-    val_data = CustomDataset(image_paths = val_paths, labels=discrete_labels, transform=None)
-    test_data = CustomDataset(image_paths = test_paths, labels=discrete_labels, transform=None)
+    train_data = CustomDataset(image_paths=training_paths, labels=discrete_labels[test_size + val_size:], transform=None)
+    val_data = CustomDataset(image_paths = val_paths, labels=discrete_labels[test_size:test_size+val_size], transform=None)
+    test_data = CustomDataset(image_paths = test_paths, labels=discrete_labels[0:test_size], transform=None)
 
-    train_dataloader = DataLoader(train_data, batch_size=32, shuffle=False)
-    val_dataloader = DataLoader(val_data, batch_size=32, shuffle=False)
-    test_dataloader = DataLoader(test_data, batch_size=32, shuffle=False)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    train_dataloader = DataLoader(train_data, batch_size=128, shuffle=True)
+    val_dataloader = DataLoader(val_data, batch_size=128, shuffle=True)
+    test_dataloader = DataLoader(test_data, batch_size=128, shuffle=False)
     model = CNN().to(device)
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    train_and_validate(model, train_dataloader, val_dataloader, optimizer, criterion, num_epochs=10)
+    train_losses, val_losses, train_accuracies, val_accuracies = train_and_validate(model, train_dataloader, val_dataloader, optimizer, criterion, num_epochs=20, patience=5)
+
+    # Plotting the figures
+
+    # Figure one: Loss
+
+    plt.figure(figsize=(12, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(train_losses, label='Train Loss')
+    plt.plot(val_losses, label='Validation Loss')
+    plt.title('Loss per Epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    # Figure two: Accuracy
+
+    plt.subplot(1, 2, 2)
+    plt.plot(train_accuracies, label='Train Accuracy')
+    plt.plot(val_accuracies, label='Validation Accuracy')
+    plt.title('Accuracy per Epoch')
+    plt.xlabel('Accuracy')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.show()
 
     # Test
     test_loss = 0
@@ -240,6 +285,7 @@ if __name__ ==  "__main__":
     model.eval()
     with torch.no_grad():
         for images, labels in test_dataloader:
+            labels = labels.long()  # Convert labels to long
             images = np.copy(images)  # Make a copy to ensure it is writable
             images = torch.from_numpy(images)
             outputs = model(images)
@@ -251,4 +297,30 @@ if __name__ ==  "__main__":
 
     test_accuracy = correct_test / total_test
     print(f'Test Loss: {test_loss / total_test:.4f}, Test Accuracy: {test_accuracy:.4f}')
+
+    predicted_np = predicted.cpu().numpy()
+    labels_np = labels.cpu().numpy()
+
+    # Compute confusion matrix
+    cnf_matrix = confusion_matrix(labels_np, predicted_np)
+    np.set_printoptions(precision=2)
+    class_names = ["nothing", "left", "right","gas", "break"]
+
+    # Plot confusion matrix
+    plt.figure(figsize=(10, 7))
+    sns.heatmap(cnf_matrix, annot=True, fmt='g', cbar=False, cmap='Blues');
+
+    # Add labels
+    plt.ylabel('True Label')
+    plt.xlabel('Predicted Label')
+    plt.title('Confusion Matrix')
+
+    # Add tickmarks
+    tick_marks = np.arange(len(class_names))
+    plt.xticks(tick_marks, class_names, rotation=45)
+    plt.yticks(tick_marks, class_names)
+
+    plt.show()
+
+
 
