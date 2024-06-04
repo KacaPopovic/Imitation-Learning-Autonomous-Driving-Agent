@@ -6,11 +6,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 class CustomDataset(Dataset):
-    def __init__(self, image_paths, labels, transform=None):
+    def __init__(self, image_paths, labels, mode, transform=None):
         self.image_paths = image_paths
         self.labels = labels
         self.transform = transform
         self.brown_color = (115, 70, 31)
+        self.mode = mode
 
     def __len__(self):
         return len(self.image_paths)
@@ -20,7 +21,7 @@ class CustomDataset(Dataset):
         image = Image.open(image_path).convert("RGB")
         label = self.labels[idx]
 
-        if self.transform:
+        if self.mode == 2:
             if np.random.rand() > 0.8:
                 image = transforms.functional.vflip(image)
                 # Swap labels if vertical flip occurs
@@ -42,11 +43,7 @@ class CustomDataset(Dataset):
                 image_np[mask] = self.brown_color
 
                 image = Image.fromarray(image_np)
-            image = self.transform(image)
-        else:
-            image = transforms.ToTensor()(image)
-            image = transforms.Resize((96, 96))(image)
-
+        image = self.transform(image)
         return image, label
 
 

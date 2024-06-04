@@ -6,8 +6,6 @@ import torchvision.transforms as transforms
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import confusion_matrix
-import seaborn as sns
 from model import CNN, CustomDataset
 
 
@@ -100,9 +98,9 @@ def train_and_validate(model, train_loader, val_loader, test_loader, optimizer, 
         test_accuracy = correct_test / total_test
         test_losses.append(test_loss / total_test)
         test_accuracies.append(test_accuracy)
-
-        print(
-            f'Epoch {epoch + 1}: Train Loss: {train_loss / total_train:.4f}, Val Loss: {val_loss / total_val:.4f}, Train Accuracy: {train_accuracy:.4f}, Val Accuracy: {val_accuracy:.4f}')
+        print(f'Epoch {epoch + 1}:')
+        print(f'Train Loss: {train_loss / total_train:.4f}, Val Loss: {val_loss / total_val:.4f}, Test Loss: {test_loss/total_test}')
+        print(f'Train Accuracy: {train_accuracy:.4f}, Val Accuracy: {val_accuracy:.4f}, Test Accuracy: {test_accuracy:.4f}')
 
         # Check if the current validation accuracy is the best we've seen so far
         if val_accuracy > best_val_accuracy:
@@ -115,8 +113,25 @@ def train_and_validate(model, train_loader, val_loader, test_loader, optimizer, 
 
     return train_losses, val_losses, test_losses, train_accuracies, val_accuracies, test_accuracies
 
-def load_data(path, transforms = None):
+def load_data(path, mode = 1):
     ## 2. Data Augmentation for Car Racing
+    if mode == 2:
+        transform = transforms.Compose([
+            transforms.Resize((96, 96)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+        ])
+    elif mode == 3:
+        transform = transforms.Compose([
+            transforms.Grayscale(num_output_channels=3),
+            transforms.Resize((96, 96)),
+            transforms.ToTensor(),
+        ])
+    else:
+        transform = transforms.Compose([
+            transforms.Resize((96, 96)),
+            transforms.ToTensor(),
+        ])
 
     df = pd.read_excel(path)
     image_paths = df['Snapshot'].values
@@ -136,9 +151,9 @@ def load_data(path, transforms = None):
     training_labels = discrete_labels[test_size + val_size:]
 
     # Create the dataset and data loader
-    train_data = CustomDataset(image_paths=training_paths, labels=training_labels, transform=transforms)
-    val_data = CustomDataset(image_paths=val_paths, labels=val_labels, transform=transforms)
-    test_data = CustomDataset(image_paths=test_paths, labels=test_labels, transform=None)
+    train_data = CustomDataset(image_paths=training_paths, labels=training_labels, mode=mode, transform=transform)
+    val_data = CustomDataset(image_paths=val_paths, labels=val_labels, mode = mode, transform=transform)
+    test_data = CustomDataset(image_paths=test_paths, labels=test_labels, mode = mode, transform=None)
 
     return train_data, val_data, test_data
 
@@ -149,15 +164,7 @@ if __name__ ==  "__main__":
     mode = 1
 
     path =r"C:\Users\Admin\Desktop\fau\second semester\ml lab\assigment 2\Imitation-Learning-Autonomous-Driving-Agent\action_snapshots.xlsx"
-    if mode != 2:
-        train_data, val_data, test_data = load_data(path)
-    else:
-        transform = transforms.Compose([
-            transforms.Resize((96, 96)),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-        ])
-        train_data, val_data, test_data = load_data(path, transform)
+    train_data, val_data, test_data = load_data(path, mode)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -187,7 +194,6 @@ if __name__ ==  "__main__":
     plt.plot(train_losses, label='Train Loss')
     plt.plot(val_losses, label='Validation Loss')
     plt.plot(test_losses, label ='Test Loss')
-    plt.title('Loss per Epoch')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
@@ -198,16 +204,11 @@ if __name__ ==  "__main__":
     plt.plot(train_accuracies, label='Train Accuracy')
     plt.plot(val_accuracies, label='Validation Accuracy')
     plt.plot(test_accuracies, label ='Test Accuracy')
-    plt.title('Accuracy per Epoch')
     plt.xlabel('Accuracy')
     plt.ylabel('Loss')
     plt.legend()
     plt.show()
 
-    # Test
-    test_loss = 0
-    total_test = 0
-    correct_test = 0
 
 
 
