@@ -43,7 +43,13 @@ class CustomDataset(Dataset):
                 image_np[mask] = self.brown_color
 
                 image = Image.fromarray(image_np)
-        image = self.transform(image)
+        if self.transform is not None:
+            image = self.transform(image)
+        else:
+            self.transform = transforms.Compose([
+                transforms.Resize((96, 96)),
+                transforms.ToTensor()])
+            image = self.transform(image)
         return image, label
 
 

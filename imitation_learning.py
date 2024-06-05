@@ -176,7 +176,7 @@ if __name__ ==  "__main__":
     model = CNN().to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    train_losses, val_losses, test_losses, train_accuracies, val_accuracies, test_accuracies = train_and_validate(model, train_dataloader, val_dataloader, test_dataloader, optimizer, criterion, num_epochs=1, patience=5)
+    train_losses, val_losses, test_losses, train_accuracies, val_accuracies, test_accuracies = train_and_validate(model, train_dataloader, val_dataloader, test_dataloader, optimizer, criterion, num_epochs=20, patience=3)
 
     # Plotting the figures
 
