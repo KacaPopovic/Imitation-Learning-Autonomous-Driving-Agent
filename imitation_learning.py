@@ -116,14 +116,20 @@ def train_and_validate(model, train_loader, val_loader, test_loader, optimizer, 
 def load_data(path, mode = 1):
     ## 2. Data Augmentation for Car Racing
     if mode == 2:
+        random_rotation = transforms.RandomRotation(degrees=20)  # Rotation up to +/- 20 degrees
+        apply_random_rotation = transforms.RandomApply([random_rotation],
+                                                       p=0.2)  # Apply the rotation with a probability of 0.2
+
         transform = transforms.Compose([
             transforms.Resize((96, 96)),
             transforms.RandomHorizontalFlip(),
+            apply_random_rotation,  # Adding the random rotation here
             transforms.ToTensor(),
         ])
+
     elif mode == 3:
         transform = transforms.Compose([
-            transforms.Grayscale(num_output_channels=3),
+            transforms.Grayscale(num_output_channels=1),
             transforms.Resize((96, 96)),
             transforms.ToTensor(),
         ])
@@ -161,7 +167,7 @@ if __name__ ==  "__main__":
 
     # RGB training with no augmentation - 1, with augm - 2, grayscale - 3
 
-    mode = 1
+    mode = 2
 
     path =r"C:\Users\Admin\Desktop\fau\second semester\ml lab\assigment 2\Imitation-Learning-Autonomous-Driving-Agent\action_snapshots.xlsx"
     train_data, val_data, test_data = load_data(path, mode)

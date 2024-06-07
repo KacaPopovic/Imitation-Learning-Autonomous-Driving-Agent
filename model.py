@@ -20,35 +20,37 @@ class CustomDataset(Dataset):
         image_path = self.image_paths[idx]
         image = Image.open(image_path).convert("RGB")
         label = self.labels[idx]
-
-        if self.mode == 2:
-            if np.random.rand() > 0.8:
-                image = transforms.functional.vflip(image)
-                # Swap labels if vertical flip occurs
-                if label == 1:
-                    label = 2
-                elif label == 2:
-                    label = 1
-            if np.random.rand() > 0.8:
-                image_np = np.array(image)
-
-                # Define the grey color range.
-                lower_grey = np.array([100, 100, 100])
-                upper_grey = np.array([200, 200, 200])
-
-                # Create a mask for grey areas.
-                mask = np.all(image_np >= lower_grey, axis=-1) & np.all(image_np <= upper_grey, axis=-1)
-
-                # Change grey areas to brown.
-                image_np[mask] = self.brown_color
-
-                image = Image.fromarray(image_np)
         if self.transform is not None:
+            if self.mode == 2:
+                if np.random.rand() > 0.8:
+                    image = transforms.functional.vflip(image)
+                    # Swap labels if vertical flip occurs
+                    if label == 1:
+                        label = 2
+                    elif label == 2:
+                        label = 1
+                if np.random.rand() > 1:
+                    image_np = np.array(image)
+
+                    # Define the grey color range.
+                    lower_grey = np.array([100, 100, 100])
+                    upper_grey = np.array([200, 200, 200])
+
+                    # Create a mask for grey areas.
+                    mask = np.all(image_np >= lower_grey, axis=-1) & np.all(image_np <= upper_grey, axis=-1)
+
+                    # Change grey areas to brown.
+                    image_np[mask] = self.brown_color
+
+                    image = Image.fromarray(image_np)
+
             image = self.transform(image)
         else:
             self.transform = transforms.Compose([
                 transforms.Resize((96, 96)),
                 transforms.ToTensor()])
+            if self.mode == 3:
+                image = transforms.Grayscale(1)(image)
             image = self.transform(image)
         return image, label
 
