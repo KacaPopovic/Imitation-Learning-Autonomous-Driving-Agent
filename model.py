@@ -44,6 +44,26 @@ class CustomDataset(Dataset):
 
                     image = Image.fromarray(image_np)
 
+            if self.mode == 5:
+                image = transforms.functional.vflip(image)
+                if label == 1:
+                    label = 2
+                elif label == 2:
+                    label = 1
+            if self.mode == 6:
+                image_np = np.array(image)
+                # Define the grey color range.
+                lower_grey = np.array([100, 100, 100])
+                upper_grey = np.array([200, 200, 200])
+
+                # Create a mask for grey areas.
+                mask = np.all(image_np >= lower_grey, axis=-1) & np.all(image_np <= upper_grey, axis=-1)
+
+                # Change grey areas to brown.
+                image_np[mask] = self.brown_color
+
+                image = Image.fromarray(image_np)
+
             image = self.transform(image)
         else:
             self.transform = transforms.Compose([

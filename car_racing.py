@@ -845,7 +845,7 @@ if __name__ == "__main__":
             env.render()  # This renders on the screen
 
             total_reward += reward
-            if steps % 10 == 0 or terminated or truncated:
+            if steps % 10 == 0 or terminated or truncated and steps > 20:
                 # Capture the display as an array to save
                 data = pygame.surfarray.array3d(pygame.display.get_surface())
                 file_name = f'snapshot_step_{num_samples}.png'

@@ -139,6 +139,20 @@ def load_data(path, mode = 1):
             transforms.ToTensor(),
         ])
 
+    if mode == 4:
+        test_transform = transforms.Compose([
+            transforms.Resize((96, 96)),
+            transforms.RandomHorizontalFlip(1),
+            transforms.ToTensor(),
+        ])
+    elif mode == 5:
+        test_transform = transforms.Compose([
+            transforms.Resize((96, 96)),
+            transforms.ToTensor(),
+
+        ])
+    else:
+        test_transform = None
     df = pd.read_excel(path)
     image_paths = df['Snapshot'].values
     labels = df['Action'].apply(eval).values
@@ -159,7 +173,7 @@ def load_data(path, mode = 1):
     # Create the dataset and data loader
     train_data = CustomDataset(image_paths=training_paths, labels=training_labels, mode=mode, transform=transform)
     val_data = CustomDataset(image_paths=val_paths, labels=val_labels, mode = mode, transform=transform)
-    test_data = CustomDataset(image_paths=test_paths, labels=test_labels, mode = mode, transform=None)
+    test_data = CustomDataset(image_paths=test_paths, labels=test_labels, mode = mode, transform=test_transform)
 
     return train_data, val_data, test_data
 
