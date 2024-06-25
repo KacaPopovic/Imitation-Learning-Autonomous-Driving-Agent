@@ -13,6 +13,10 @@ from gymnasium.utils import EzPickle
 from PIL import Image
 import os
 import pandas as pd
+import torch
+from imitation_learning import *
+from model import *
+import torchvision.transforms as transforms
 
 try:
     import Box2D
@@ -797,75 +801,68 @@ def save_image_from_array(array, file_name, folder="test"):
     image.save(full_path)
     return full_path
 
+def label_to_action(label):
+    if label == 0:
+        return [0.0, 0.0, 0.0]
+    elif label == 1:
+        return [-1.0, 0.0, 0.0]
+    elif label == 2:
+        return [1.0, 0.0, 0.0]
+    elif label == 3:
+        return [0.0, 1.0, 0.0]
+    elif label == 4:
+        return [0.0, 0.0, 0.8]
+    else:
+        return [0.0, 0.0, 0.0]
+
+
 if __name__ == "__main__":
 
     pygame.init()
     screen = pygame.display.set_mode((800, 600))
     env = CarRacing(render_mode="human")  # This should display the game window
 
-    def register_input():
-        global quit, restart
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                # Key down actions
-                if event.key == pygame.K_LEFT:
-                    a[0] = -1.0
-                elif event.key == pygame.K_RIGHT:
-                    a[0] = 1.0
-                elif event.key == pygame.K_UP:
-                    a[1] = 1.0
-                elif event.key == pygame.K_DOWN:
-                    a[2] = 0.8
-                elif event.key == pygame.K_RETURN:
-                    restart = True
-                elif event.key == pygame.K_ESCAPE:
-                    quit = True
-            elif event.type == pygame.KEYUP:
-                # Reset actions on key up
-                if event.key in [pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN]:
-                    a[event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT] = 0
-                    a[event.key == pygame.K_UP] = 0
-                    a[event.key == pygame.K_DOWN] = 0
-
-
     # Setup DataFrame to store results
     results = pd.DataFrame(columns=['Snapshot', 'Action'])
-
     quit = False
     a = np.array([0.0, 0.0, 0.0])
     num_samples = 0
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = CNN().to(device)
+    model.load_state_dict(torch.load('best_model3.pth'))
+    transform = transforms.Compose([
+        transforms.Resize((96, 96)),
+        transforms.ToTensor(),
+    ])
+
     while not quit:
         env.reset()
         total_reward = 0.0
         steps = 0
         restart = False
         while True:
-            register_input()
+            # register_input()
             state, reward, terminated, truncated, info = env.step(a)
             env.render()  # This renders on the screen
-
             total_reward += reward
-            if steps % 10 == 0 or terminated or truncated and steps > 20:
+            if steps % 1 == 0 or terminated or truncated:
                 # Capture the display as an array to save
-                data = pygame.surfarray.array3d(pygame.display.get_surface())
-                file_name = f'snapshot_step_{num_samples}.png'
-                num_samples = num_samples + 1
-                if num_samples % 100 == 0:
-                    print(f"num samples: {num_samples}")
-                image_path = save_image_from_array(data, file_name)
-                # Record the action and image path
-                new_row = pd.DataFrame([[image_path, list(a)]], columns=['Snapshot', 'Action'])
-                results = pd.concat([results, new_row], ignore_index=True)
-
-                #print(f"\naction {[f'{x:+0.2f}' for x in a]}")
-                #print(f"step {steps} total_reward {total_reward:+0.2f}")
+                game_surface_arr =pygame.surfarray.array3d(pygame.display.get_surface())
+                image_tensor = transform(Image.fromarray(game_surface_arr))
+                image_tensor = image_tensor.unsqueeze(0).to(device)
+                with torch.no_grad():
+                    output = model(image_tensor)
+                    output = torch.softmax(output, dim=1)
+                _, predicted_class = torch.max(output, 1)
+                predicted_class = predicted_class.item()
+                print(predicted_class)
+                a = label_to_action(predicted_class)
+                a = np.array(a)
+            else:
+                a = np.array([0.0, 0.0, 0.0])
 
             steps += 1
             if terminated or truncated or restart or quit:
                 break
-    filename = 'action_snapshots.xlsx'
-    results.to_excel(filename, index = False)
-    # Print the path to confirm where the file is saved
-    print(f"DataFrame is saved in: {os.path.abspath(filename)}")
 
     env.close()
