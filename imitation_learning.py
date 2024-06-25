@@ -177,6 +177,18 @@ def load_data(path, mode = 1):
 
     return train_data, val_data, test_data
 
+def calculate_weights(labels):
+    # Convert to Tensor
+    label_tensor = torch.tensor(labels)
+
+    # Count number of occurrences of each value
+    label_counts = torch.bincount(label_tensor)
+
+    # Calculate weights
+    weights = 1. / label_counts.float()
+
+    return weights
+
 if __name__ ==  "__main__":
 
     # RGB training with no augmentation - 1, with augm - 2, grayscale - 3
@@ -191,10 +203,12 @@ if __name__ ==  "__main__":
     train_dataloader = DataLoader(train_data, batch_size=128, shuffle=True)
     val_dataloader = DataLoader(val_data, batch_size=128, shuffle=True)
     test_dataloader = DataLoader(test_data, batch_size=128, shuffle=False)
-
+    weights = calculate_weights(train_data.labels)
+    weights = weights.to(device)
+    criterion = nn.CrossEntropyLoss(weight=weights)
 
     model = CNN().to(device)
-    criterion = nn.CrossEntropyLoss()
+    #criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     train_losses, val_losses, test_losses, train_accuracies, val_accuracies, test_accuracies = train_and_validate(model, train_dataloader, val_dataloader, test_dataloader, optimizer, criterion, num_epochs=20, patience=3)
 
