@@ -829,7 +829,7 @@ if __name__ == "__main__":
     num_samples = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = CNN().to(device)
-    model.load_state_dict(torch.load('best_model3.pth'))
+    model.load_state_dict(torch.load('best_model_weighted_less_heavy.pth'))
     transform = transforms.Compose([
         transforms.Resize((96, 96)),
         transforms.ToTensor(),
@@ -847,17 +847,27 @@ if __name__ == "__main__":
             total_reward += reward
             if steps % 1 == 0 or terminated or truncated:
                 # Capture the display as an array to save
-                game_surface_arr =pygame.surfarray.array3d(pygame.display.get_surface())
-                image_tensor = transform(Image.fromarray(game_surface_arr))
+                """
+                image_array = env._render(mode="rgb_array")
+                image = Image.fromarray(image_array)
+                transformed_image = transform(image)
+                input = transformed_image.unsqueeze(0) """
+                game_surface_arr = pygame.surfarray.array3d(pygame.display.get_surface())
+                data = pygame.surfarray.array3d(pygame.display.get_surface())
+                image = Image.fromarray(data)
+                image_tensor = transform(image)
                 image_tensor = image_tensor.unsqueeze(0).to(device)
+                image_tensor = image_tensor.to(device)
                 with torch.no_grad():
                     output = model(image_tensor)
                     output = torch.softmax(output, dim=1)
+                #print(output)
                 _, predicted_class = torch.max(output, 1)
                 predicted_class = predicted_class.item()
                 print(predicted_class)
                 a = label_to_action(predicted_class)
-                a = np.array(a)
+                a = np.array(a) * 0.1
+                #print(a)
             else:
                 a = np.array([0.0, 0.0, 0.0])
 

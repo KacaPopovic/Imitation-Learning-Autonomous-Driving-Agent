@@ -7,6 +7,27 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from model import CNN, CustomDataset
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+
+
+def create_confusion_matrix(train_loader, model):
+    model.eval()  # Put the model in evaluation mode
+    all_targets = []
+    all_predictions = []
+    with torch.no_grad():  # We don't want to track gradients during prediction
+        for images, targets in train_loader:
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)  # Select the class with the highest probability
+            all_targets.extend(targets)
+            all_predictions.extend(predicted)
+
+    # Create the confusion matrix
+    cm = confusion_matrix(all_targets, all_predictions)
+    return cm
 
 
 def transform_label(label):
@@ -105,7 +126,7 @@ def train_and_validate(model, train_loader, val_loader, test_loader, optimizer, 
         # Check if the current validation accuracy is the best we've seen so far
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy  # Update the best known accuracy
-            torch.save(model.state_dict(), 'best_model.pth')  # Save the model
+            torch.save(model.state_dict(), 'best_model_weighted_less_heavy.pth')  # Save the model
             print("Saved new best model")
             non_improve_counter = 0  # Reset counter
         else:
@@ -148,7 +169,7 @@ def load_data(path, mode = 1):
     elif mode == 5:
         test_transform = transforms.Compose([
             transforms.Resize((96, 96)),
-            transforms.ToTensor(),
+             transforms.ToTensor(),
 
         ])
     else:
@@ -186,10 +207,15 @@ def calculate_weights(labels):
 
     # Calculate weights
     weights = 1. / label_counts.float()
-
+    mean_weight = torch.mean(weights)
+    for i in range(len(weights)):
+        if weights[i] > 2*mean_weight:
+            weights[i] = mean_weight/2
     return weights
 
+
 if __name__ ==  "__main__":
+
 
     # RGB training with no augmentation - 1, with augm - 2, grayscale - 3
 
@@ -204,8 +230,22 @@ if __name__ ==  "__main__":
     val_dataloader = DataLoader(val_data, batch_size=128, shuffle=True)
     test_dataloader = DataLoader(test_data, batch_size=128, shuffle=False)
     weights = calculate_weights(train_data.labels)
+    weights =torch.tensor([1, 20, 20, 2, 0.1])
     weights = weights.to(device)
     criterion = nn.CrossEntropyLoss(weight=weights)
+
+    """ Load the model
+    model = CNN()
+    model.load_state_dict(torch.load('best_model_weighted1.pth'))
+
+    cm = create_confusion_matrix(test_dataloader, model)
+
+    # Display the confusion matrix
+    plt.figure(figsize=(10, 10))
+    sns.heatmap(cm, annot=True, fmt="d", linewidths=.5, square=True)
+    plt.ylabel('Actual label')
+    plt.xlabel('Predicted label')
+    plt.show() """
 
     model = CNN().to(device)
     #criterion = nn.CrossEntropyLoss()
