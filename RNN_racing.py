@@ -856,16 +856,17 @@ if __name__ == "__main__":
                 image_tensor = image_tensor.to(device)
                 frame_buffer.append(image_tensor)
                 if len(frame_buffer) == 32:
-                    input_tensor = torch.cat(list(frame_buffer), dim = 0).unsqueeze(0)
+                    input_tensor = torch.cat(list(frame_buffer), dim = 0)
                     with torch.no_grad():
-                        output = model(image_tensor)
-                        output = torch.softmax(output, dim=1)
+                        output = model(input_tensor)
+                        output = output[-1,:]
+                        output = torch.softmax(output, dim=0)
 
-                    _, predicted_class = torch.max(output, 1)
+                    _, predicted_class = torch.max(output, 0)
                     predicted_class = predicted_class.item()
                     print(predicted_class)
                     a = label_to_action(predicted_class)
-                    a = np.array(a)
+                    a = np.array(a)*0.1
                 else:
                     a = np.array([0.0, 0.1, 0.0])
             else:
