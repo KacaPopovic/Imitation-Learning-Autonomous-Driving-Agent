@@ -126,7 +126,7 @@ def train_and_validate(model, train_loader, val_loader, test_loader, optimizer, 
         # Check if the current validation accuracy is the best we've seen so far
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy  # Update the best known accuracy
-            torch.save(model.state_dict(), 'best_model_weighted_less_heavy.pth')  # Save the model
+            torch.save(model.state_dict(), 'best_model_experiment.pth')  # Save the model
             print("Saved new best model")
             non_improve_counter = 0  # Reset counter
         else:
@@ -230,7 +230,7 @@ if __name__ ==  "__main__":
     val_dataloader = DataLoader(val_data, batch_size=128, shuffle=True)
     test_dataloader = DataLoader(test_data, batch_size=128, shuffle=False)
     weights = calculate_weights(train_data.labels)
-    weights =torch.tensor([1, 20, 20, 2, 0.1])
+    weights =torch.tensor([1, 10, 10, 2, 0.1])
     weights = weights.to(device)
     criterion = nn.CrossEntropyLoss(weight=weights)
 
@@ -282,9 +282,3 @@ if __name__ ==  "__main__":
     plt.ylabel('Loss')
     plt.legend()
     plt.show()
-
-
-
-
-
-
