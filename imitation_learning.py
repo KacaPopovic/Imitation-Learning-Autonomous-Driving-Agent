@@ -232,11 +232,11 @@ if __name__ ==  "__main__":
     weights = calculate_weights(train_data.labels)
     weights =torch.tensor([1, 10, 10, 2, 0.1])
     weights = weights.to(device)
-    criterion = nn.CrossEntropyLoss(weights = weights)
+    criterion = nn.CrossEntropyLoss(weight = weights)
 
-    """ Load the model
-    model = CNN()
-    model.load_state_dict(torch.load('best_model_weighted1.pth'))
+    # Load the model
+    model = RNN()
+    model.load_state_dict(torch.load('./models/best_model_recurrent.pth'))
 
     cm = create_confusion_matrix(test_dataloader, model)
 
@@ -245,7 +245,7 @@ if __name__ ==  "__main__":
     sns.heatmap(cm, annot=True, fmt="d", linewidths=.5, square=True)
     plt.ylabel('Actual label')
     plt.xlabel('Predicted label')
-    plt.show() """
+    plt.show()
 
     model = CNN().to(device)
     #criterion = nn.CrossEntropyLoss()
