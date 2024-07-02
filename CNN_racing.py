@@ -829,7 +829,7 @@ if __name__ == "__main__":
     num_samples = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = CNN().to(device)
-    model.load_state_dict(torch.load('best_model_experiment.pth'))
+    model.load_state_dict(torch.load('./models/best_model_experiment.pth'))
     transform = transforms.Compose([
         transforms.Resize((96, 96)),
         transforms.ToTensor(),

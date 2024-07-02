@@ -6,7 +6,7 @@ import torchvision.transforms as transforms
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from model import CNN, CustomDataset
+from model import CNN, CustomDataset, RNN
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -33,9 +33,9 @@ def create_confusion_matrix(train_loader, model):
 def transform_label(label):
     if label == [0.0, 0.0, 0.0]:
         return 0
-    elif label == [-1.0, 0.0, 0.0]:
+    elif label[0] == -1.0:
         return 1
-    elif label == [1.0, 0.0, 0.0]:
+    elif label[0] == 1.0:
         return 2
     elif label == [0.0, 1.0, 0.0]:
         return 3
@@ -126,7 +126,7 @@ def train_and_validate(model, train_loader, val_loader, test_loader, optimizer, 
         # Check if the current validation accuracy is the best we've seen so far
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy  # Update the best known accuracy
-            torch.save(model.state_dict(), 'best_model_experiment.pth')  # Save the model
+            torch.save(model.state_dict(), './models/best_model_different_labels.pth')  # Save the model
             print("Saved new best model")
             non_improve_counter = 0  # Reset counter
         else:
@@ -232,7 +232,7 @@ if __name__ ==  "__main__":
     weights = calculate_weights(train_data.labels)
     weights =torch.tensor([1, 10, 10, 2, 0.1])
     weights = weights.to(device)
-    criterion = nn.CrossEntropyLoss(weight=weights)
+    criterion = nn.CrossEntropyLoss(weights = weights)
 
     """ Load the model
     model = CNN()

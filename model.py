@@ -109,3 +109,56 @@ class CNN(nn.Module):
         # Add 2nd hidden layer (output layer)
         x = self.fc2(x)
         return x
+
+class RNN(nn.Module):
+
+    def __init__(self):
+        super(RNN, self).__init__()
+        # Convolutional layer (sees 96x96x3 image tensor)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1)
+
+        # Convolutional layer (sees 48x48x32 tensor)
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
+
+        # Max pooling layer
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.context_length = 32
+
+        # LSTM layer
+        self.lstm = nn.LSTM(input_size=64 * 24 * 24, hidden_size=128, batch_first=True)
+
+        # Linear layer (128 -> 5)
+        self.fc2 = nn.Linear(128, 5)
+
+    def forward(self, x):
+        # Add sequence of convolutional and max pooling layers
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+
+        # Reshape the tensor to (batch_size, context_length, 64 * 24 * 24)
+        # Reshape the tensor to (batch_size, sequence_length, input_size)
+        original_batch_size = x.size(0)
+        sequence_length = self.context_length
+        batch_size = original_batch_size // sequence_length
+        x = x[:batch_size * sequence_length]
+        x = x.view(batch_size, sequence_length, 64 * 24 * 24)
+
+        if batch_size == 0:
+            x = torch.zeros(original_batch_size, 128)
+            return x
+
+        # LSTM forward pass
+        x,_ = self.lstm(x)
+
+        # Get the hidden state of the last time step
+        #x = h_n[-1]
+        x = x.contiguous().view(batch_size * sequence_length, -1)
+
+        # Fully connected layer
+        x = self.fc2(x)
+        if original_batch_size % sequence_length != 0:
+            padding_size = original_batch_size % sequence_length
+            padding = torch.zeros(padding_size, x.size(1))
+            x = torch.cat((x, padding), dim=0)
+
+        return x
