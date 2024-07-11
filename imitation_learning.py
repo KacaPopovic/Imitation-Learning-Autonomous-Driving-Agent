@@ -235,8 +235,8 @@ if __name__ ==  "__main__":
     criterion = nn.CrossEntropyLoss(weight = weights)
 
     # Load the model
-    model = RNN()
-    model.load_state_dict(torch.load('./models/best_model_recurrent.pth'))
+    model = CNN()
+    model.load_state_dict(torch.load('./models/best_model1.pth'))
 
     cm = create_confusion_matrix(test_dataloader, model)
 
@@ -245,6 +245,7 @@ if __name__ ==  "__main__":
     sns.heatmap(cm, annot=True, fmt="d", linewidths=.5, square=True)
     plt.ylabel('Actual label')
     plt.xlabel('Predicted label')
+    plt.title("CNN normal loss")
     plt.show()
 
     model = CNN().to(device)

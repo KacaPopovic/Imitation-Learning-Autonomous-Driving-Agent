@@ -847,7 +847,7 @@ if __name__ == "__main__":
             state, reward, terminated, truncated, info = env.step(a)
             env.render()  # This renders on the screen
             total_reward += reward
-            if steps % 1 == 0 or terminated or truncated:
+            if steps % 10 == 0 or terminated or truncated:
                 game_surface_arr = pygame.surfarray.array3d(pygame.display.get_surface())
                 data = pygame.surfarray.array3d(pygame.display.get_surface())
                 image = Image.fromarray(data)
