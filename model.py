@@ -75,36 +75,26 @@ class CustomDataset(Dataset):
         return image, label
 
 
+# Updated CNN model with named ReLU layers for fusion
 class CNN(nn.Module):
-
     def __init__(self):
         super(CNN, self).__init__()
-        # Convolutional layer (sees 96x96x3 image tensor)
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1)
-
-        # Convolutional layer (sees 48x48x16 tensor)
+        self.relu1 = nn.ReLU()
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
-
-        # Max pooling layer
+        self.relu2 = nn.ReLU()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
-        # Linear layer (64 * 12 * 12 -> 500)
         self.fc1 = nn.Linear(64 * 24 * 24, 128)
-
-        # Linear layer (500 -> 5)
+        self.relu3 = nn.ReLU()
         self.fc2 = nn.Linear(128, 5)
 
     def forward(self, x):
-        # Add sequence of convolutional and max pooling layers
-        x = self.pool(F.relu(self.conv1(x)))
-
-        x = self.pool(F.relu(self.conv2(x)))
-
-        # Flatten image input
+        x = self.pool(self.relu1(self.conv1(x)))
+        x = self.pool(self.relu2(self.conv2(x)))
         x = torch.flatten(x, start_dim=1)
-
-        # Add 1st hidden layer, with relu activation function
-        x = F.relu(self.fc1(x))
+        x = self.relu3(self.fc1(x))
+        x = self.fc2(x)
+        return x
 
         # Add 2nd hidden layer (output layer)
         x = self.fc2(x)
