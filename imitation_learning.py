@@ -134,6 +134,30 @@ def train_and_validate(model, train_loader, val_loader, test_loader, optimizer, 
 
     return train_losses, val_losses, test_losses, train_accuracies, val_accuracies, test_accuracies
 
+
+def evaluate_model_accuracy(model, data_loader, criterion):
+    model.eval()  # Set the model to evaluation mode
+    correct = 0
+    total = 0
+    loss = 0.0
+
+    with torch.no_grad():  # Disable gradient calculation for evaluation
+        for images, labels in data_loader:
+            labels = labels.long()  # Convert labels to long
+            images = np.copy(images)  # Make a copy to ensure it is writable
+            images = torch.from_numpy(images)
+            labels = labels
+            outputs = model(images)
+            # batch_loss = criterion(outputs, labels)
+            # loss += batch_loss.item() * images.size(0)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    accuracy = correct / total
+    average_loss = loss / total
+    return accuracy
+
 def load_data(path, mode = 1):
     ## 2. Data Augmentation for Car Racing
     if mode == 2:
